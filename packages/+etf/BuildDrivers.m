@@ -70,7 +70,7 @@ function BuildDrivers(generateSimulinkBlocks)
     def.HostLibFiles            = {};
     def.Options.language        = 'C++';
     def.Options.useTlcWithAccel = false;
-    def.SampleTime              = 'inherited';
+    def.SampleTime              = 'parameterized';
     defs = [defs; def];
 
 
