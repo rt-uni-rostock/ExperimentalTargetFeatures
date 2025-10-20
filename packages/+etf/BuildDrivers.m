@@ -1,10 +1,27 @@
-function BuildDrivers()
+function BuildDrivers(generateSimulinkBlocks)
     %ETF.BuildDrivers Build or rebuild the driver blocks for the ETF toolbox.
     % 
+    % PARAMETERS
+    % generateSimulinkBlocks ... True if simulink blocks should be generated in a new simulink model. Default value is false.
+    %
     % DETAILS
     % This MATLAB function generates all S-functions and compiles the corresponding mex binaries for the Simulink library.
 
-    fprintf('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n B U I L D   S I M U L I N K - D R I V E R S\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n');
+    arguments
+        generateSimulinkBlocks (1,1) logical = false
+    end
+
+    % print banner
+    fprintf('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n');
+    fprintf(' ________  _________  ________\n');
+    fprintf('|_   __  ||  _   _  ||_   __  |\n');
+    fprintf('  | |_ \\_||_/ | | \\_|  | |_ \\_|\n');
+    fprintf('  |  _| _     | |      |  _|\n');
+    fprintf(' _| |__/ |   _| |_    _| |_\n');
+    fprintf('|________|  |_____|  |_____|\n\n');
+    fprintf(' Experimental Target Features\n');
+    fprintf(' %s\n', char(strjoin(string(etf.GetVersion()),'.')));
+    fprintf('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n');
 
     % navigate to drivers source directory
     currentWorkingDirectory = pwd();
@@ -15,6 +32,7 @@ function BuildDrivers()
     % find source files and generate specifications for all drivers
     sourceFiles = FindSourceFiles();
     defs = [];
+
 
     % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     % Driver: Binary Ring Buffer
@@ -37,10 +55,32 @@ function BuildDrivers()
 
 
     % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    % Driver: Startup File
+    % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    def = legacy_code('initialize');
+    def.SFunctionName           = 'SFunctionETFStartupFile';
+    def.StartFcnSpec            = 'void ETFDriver_StartupFileInitialize(void** work1, uint8 p1[], uint32 p2, uint32 p3)';
+    def.TerminateFcnSpec        = 'void ETFDriver_StartupFileTerminate(void* work1)';
+    def.OutputFcnSpec           = 'void ETFDriver_StartupFileStep(void* work1, uint8 y1[p3], uint32 y2[1], uint32 p3)';
+    def.HeaderFiles             = {'ETFDriver_StartupFile.hpp'};
+    def.SourceFiles             = [{'ETFDriver_StartupFile.cpp'}, sourceFiles];
+    def.IncPaths                = {'etf'};
+    def.SrcPaths                = {'etf'};
+    def.LibPaths                = {''};
+    def.HostLibFiles            = {};
+    def.Options.language        = 'C++';
+    def.Options.useTlcWithAccel = false;
+    def.SampleTime              = 'inherited';
+    defs = [defs; def];
+
+
+    % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     % Compile and generate all required files
     % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    % Generate SFunctions
+    % generate SFunctions
+    fprintf('generate S-functions: ');
     legacy_code('sfcn_cmex_generate', defs);
+    fprintf('done\n');
 
     % Compile
     cflags    = '-Wall -Wextra -mtune=native';
@@ -49,18 +89,30 @@ function BuildDrivers()
     libraries = {'-L/usr/lib','-L/usr/local/lib','-lstdc++','-lpthread'};
     legacy_code('compile', defs, [{['CFLAGS=$CFLAGS ',cflags],['CXXFLAGS=$CXXFLAGS ',cxxflags],['LINKFLAGS=$LINKFLAGS ',ldflags]},libraries]);
 
-    % Generate TLC
+    % generate TLC
+    fprintf('\ngenerate TLC: ');
     legacy_code('sfcn_tlc_generate', defs);
+    fprintf('done\n');
 
-    % Generate RTWMAKECFG
+    % generate RTWMAKECFG
+    fprintf('generate rtwmakecfg: ');
     legacy_code('rtwmakecfg_generate', defs);
+    fprintf('done\n');
 
     % Generate Simulink blocks (not required, all blocks are already in the library)
-    % legacy_code('slblock_generate', defs);
+    if(generateSimulinkBlocks)
+        fprintf('generate simulink blocks: ');
+        legacy_code('slblock_generate', defs);
+        fprintf('done\n');
+    end
 
     % navigate back to current working directory
-    fprintf('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n');
     cd(currentWorkingDirectory);
+
+    % print footer
+    fprintf('\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n');
+    fprintf(' ETF DRIVER BUILD COMPLETED\n');
+    fprintf('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n');
 end
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

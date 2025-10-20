@@ -5,6 +5,7 @@ This repository provides a MATLAB/Simulink library for experimental features to 
 The following features are available:
 
 - **Binary Ring Buffer**: Create multi-file binary ring buffers where filesystem operations are handled by a separate worker thread.
+- **Startup File**: Read a file to a buffer at startup and output that buffer during execution.
 
 
 ## How To Use
@@ -14,8 +15,9 @@ For examples, take a look to the [examples](examples/) directory.
 
 
 ### Initial Setup
-Depending on your operating system and MATLAB version you may need to rebuild the driver blocks of the toolbox.
-Load this project in MATLAB and run
+You need to build the driver blocks of the toolbox once before use.
+If you switch the operating system and/or MATLAB version you may need to rebuild the driver blocks.
+Load the `ETF.prj` MATLAB project and run
 ```
 etf.BuildDrivers();
 ```
